@@ -38,6 +38,31 @@ void rgbw_encode_pixels(uint8_t* pixels, rmt_item32_t* pixels_encoded)
     *pixels_encoded = rmt_end_marker;
 
 }
+void rgbw_write(uint8_t* pixels)
+{
+    rgbw_encode_pixels(pixels, pixels_encoded);
+    ESP_ERROR_CHECK(rmt_write_items(RMT_TX_CHANNEL, pixels_encoded, sizeof(pixels_encoded), 1));
+}
+void rgbw_welcome_effect(uint8_t* pixels,uint8_t color, uint8_t maxBrightness, uint8_t brightnessStep, uint16_t delay)
+{
+    uint8_t currVal = 0;
+    for(int i = 0; i < NUM_OF_PIXELS/NUM_OF_ROWS; i++)
+    {
+        while(currVal < maxBrightness)
+        {
+            
+            currVal += brightnessStep;
+            for(int j = 0; j < NUM_OF_ROWS; j++)
+                pixels[4*i+(NUM_OF_PIXELS/NUM_OF_ROWS)*j+color] = currVal;
+            rgbw_write(pixels);
+            vTaskDelay(delay/portTICK_PERIOD_MS);
+        }
+        currVal = 0;
+    }
+    for(int i = 0; i < NUM_OF_PIXELS*NUM_OF_B_IN_PIX; i++)
+        pixels[i] = 0;
+    rgbw_write(pixels);
+}
 void rmt_tx_int()
 {
     rmt_config_t config;

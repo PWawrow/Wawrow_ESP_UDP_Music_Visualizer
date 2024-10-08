@@ -67,8 +67,8 @@ void rgbwSendTask(void *pvParameter)
     ESP_LOGI("RGBW", "Configuring transmitter");
     //Init of RMT periphial
     rmt_tx_int();
-    
-    int number_of_items = (NUM_OF_PIXELS*8*NUM_OF_B_IN_PIX)+2;
+    rgbw_welcome_effect(pixels,1,120,1,30);
+   
     while (1) 
     {
         if( xUDPtoRGBWq != NULL )
@@ -76,10 +76,7 @@ void rgbwSendTask(void *pvParameter)
             // Peek a message on the created queue.  Block for 10 ticks if a
             // message is not immediately available.
             if( xQueueReceive( xUDPtoRGBWq, &( pixels ), ( TickType_t ) 10 ) )
-            {
-                rgbw_encode_pixels(pixels, pixels_encoded);
-                ESP_ERROR_CHECK(rmt_write_items(RMT_TX_CHANNEL, pixels_encoded, number_of_items, 1));
-            }
+                rgbw_write(pixels);
         }
         vTaskDelay(16 / portTICK_PERIOD_MS);
     }

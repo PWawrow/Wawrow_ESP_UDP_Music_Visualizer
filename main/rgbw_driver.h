@@ -14,6 +14,9 @@
 #ifndef NUM_OF_PIXELS
     #define NUM_OF_PIXELS 9
 #endif
+#ifndef NUM_OF_ROWS
+    #define NUM_OF_ROWS 1
+#endif
 #ifndef NUM_OF_B_IN_PIX
     #define NUM_OF_B_IN_PIX 4
 #endif
@@ -23,9 +26,11 @@
  * @brief Encode pixels array [G1,R1,B1,W1,G2,R2,B2,W2,....] to RMT friendly Array.
  *
  **/
-void rgbw_encode_pixels(uint8_t* pixels, rmt_item32_t* pixels_encoded);
 
 void rmt_tx_int();
+void rgbw_encode_pixels(uint8_t* pixels, rmt_item32_t* pixels_encoded);
+void rgbw_write(uint8_t* pixels);
+void rgbw_welcome_effect(uint8_t* pixels, uint8_t color, uint8_t maxBrightness, uint8_t brightnessStep, uint16_t delay);
 
 extern rmt_item32_t pixels_encoded[(NUM_OF_PIXELS*8*NUM_OF_B_IN_PIX)+2];
 extern uint8_t pixels[NUM_OF_PIXELS*NUM_OF_B_IN_PIX];
