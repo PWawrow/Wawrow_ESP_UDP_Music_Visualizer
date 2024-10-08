@@ -19,11 +19,8 @@ static const char *RMT_TX_TAG = "RMT Tx";
 
 void rgbw_encode_pixels(uint8_t* pixels, rmt_item32_t* pixels_encoded)
 {
-
     for(int j = 0; j < NUM_OF_PIXELS*NUM_OF_B_IN_PIX; j++)
     {
-       // ESP_LOGI("RGBW", "RECEIVE_Q %d",*pixels);
-        
         for (int k = 7; k >= 0; k--) {
             if((*pixels >> k) & 1)
             {
@@ -35,7 +32,6 @@ void rgbw_encode_pixels(uint8_t* pixels, rmt_item32_t* pixels_encoded)
             pixels_encoded++;
         }
         pixels++;
-       
     }
     *pixels_encoded = reset;
     pixels_encoded++;
