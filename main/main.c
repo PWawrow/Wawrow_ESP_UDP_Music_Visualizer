@@ -67,7 +67,7 @@ void rgbwSendTask(void *pvParameter)
     ESP_LOGI("RGBW", "Configuring transmitter");
     //Init of RMT periphial
     rmt_tx_int();
-    rgbw_welcome_effect(pixels,1,120,1,30);
+    rgbw_welcome_effect(pixels,1,120,3,15);
    
     while (1) 
     {
@@ -131,7 +131,7 @@ static void udpServerTask(void *pvParameters)
 
         while (1) 
         {
-            ESP_LOGI(UDP_SOC_TAG, "Waiting for data");
+            ESP_LOGI(UDP_SOC_TAG, "Waiting for dat");
 
             int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer), 0, (struct sockaddr *)&source_addr, &socklen);
             // Error occurred during receiving

@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from scipy.fftpack import fft
 import socket
 
-UDP_IP = "192.168.0.163"
+UDP_IP = "192.168.106.254"
 UDP_PORT = 3333
 
 
@@ -16,7 +16,7 @@ sock = socket.socket(socket.AF_INET, # Internet
                      socket.SOCK_DGRAM) # UDP
 # Constants
 SAMPLE_RATE = 44100  # Sample rate (44.1kHz)
-CHUNK_SIZE = 48    # Number of audio samples per chunk
+CHUNK_SIZE = 2000    # Number of audio samples per chunk
 
 # Set up plot for real-time visualization
 plt.ion()
@@ -47,7 +47,7 @@ def update_plot():
         # Compute FFT
         fft_data = np.abs(fft(buffer)[:CHUNK_SIZE // 2])
         
-        set(fft_data[0])
+        set(fft_data[18])
         
         # Update plot
         line.set_ydata(fft_data)
@@ -60,7 +60,8 @@ def set(num):
     send_buff = np.zeros(NUM_PIXELS*B_PER_PIX, dtype=np.uint8)
 
     for i in range(num-1):
-        send_buff[i*4+1] = 100
+        send_buff[i*4+3] = 100
+        # [G1,R1,B1,W1,....]
        # print(buffer)
     sock.sendto(send_buff, (UDP_IP, UDP_PORT))
         
