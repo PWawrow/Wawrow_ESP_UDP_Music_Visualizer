@@ -47,6 +47,7 @@ TaskHandle_t xtaskRGBW   = NULL;
 TaskHandle_t xtaskUDP    = NULL;
 QueueHandle_t xUDPtoRGBWq= NULL;
 
+
 void app_main(void)
 {
     //Connect to WIFI and RUN UDP SERVER TASK
@@ -139,7 +140,7 @@ static void udpServerTask(void *pvParameters)
             ESP_LOG_BUFFER_HEX_LEVEL(UDP_SOC_TAG, rx_buffer, sizeof(rx_buffer), 2);
             if (len < 0) 
             {
-                ESP_LOGE(UDP_SOC_TAG, "recvfrom failed: errno %d", errno);
+                //ESP_LOGE(UDP_SOC_TAG, "recvfrom failed: errno %d", errno);
                 break;
             }
             // Data received   

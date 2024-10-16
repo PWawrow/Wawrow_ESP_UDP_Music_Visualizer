@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from scipy.fftpack import fft
 import socket
 
-UDP_IP = "192.168.106.254"
+UDP_IP = "192.168.0.163"
 UDP_PORT = 3333
 
 
