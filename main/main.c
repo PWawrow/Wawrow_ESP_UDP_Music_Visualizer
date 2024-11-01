@@ -29,6 +29,8 @@
 //UDP
 #define PORT CONFIG_EXAMPLE_PORT
 #define UDP_BUFF_LEN NUM_OF_ROWS*2//2 for 16bit
+#define ESP_MDNS_HOSTNAME "ESP_LIGHT"
+#define ESP_MDNS_DESC "ESP light music vis"
 //Blink
 #define BLINK_GPIO 2
 //INC 2
@@ -38,16 +40,18 @@
 static const char *UDP_SOC_TAG = "UDP";
 static const char *MAIN_TAG = "MAIN_TAG";
 
-void rgbwSendTask(void *pvParameter);
+static void menuTask(void *pvParameter);
+static void rgbwSendTask(void *pvParameter);
 static void udpServerTask(void *pvParameters);
-void heartBeat(void *pvParameter);
-void start_mdns_service();
+static void heartBeat(void *pvParameter);
+static void start_mdns_service();
 
 //FreeRTOS Stuff
-TaskHandle_t xtaskHeartBeat = NULL;
-TaskHandle_t xtaskRGBW   = NULL;
-TaskHandle_t xtaskUDP    = NULL;
-QueueHandle_t xUDPtoRGBWq= NULL;
+static TaskHandle_t xtaskMenu = NULL;
+static TaskHandle_t xtaskHeartBeat = NULL;
+static TaskHandle_t xtaskRGBW   = NULL;
+static TaskHandle_t xtaskUDP    = NULL;
+static QueueHandle_t xUDPtoRGBWq= NULL;
 uint8_t bars_vals[NUM_OF_ROWS*2] = 
 {
 
@@ -61,17 +65,22 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     ESP_ERROR_CHECK(example_connect());
     
-    xTaskCreate(&rgbwSendTask, "RGBW_SEND", 8*1024, NULL, 1, &xtaskRGBW );
+    xTaskCreate(&menuTask, "Menu", 2*1024, NULL, 1, &xtaskMenu );
 
-    xTaskCreate(&udpServerTask, "udp_server", 4096, (void*)AF_INET, 2, &xtaskUDP);
+    xTaskCreate(&rgbwSendTask, "RGBW_Send", 8*1024, NULL, 2, &xtaskRGBW );
+
+    xTaskCreate(&udpServerTask, "Udp_Server", 4096, (void*)AF_INET, 3, &xtaskUDP);
     //RUN LED Send Task
-    
-    //
-    xTaskCreate(&heartBeat, "Heart_Beat", 2*1024,NULL,3,&xtaskHeartBeat);
+    xTaskCreate(&heartBeat, "Heart_Beat", 2*1024,NULL,4,&xtaskHeartBeat);
+
+
     start_mdns_service();
 }
 
-void rgbwSendTask(void *pvParameter)
+static void menuTask(void *pvParameter){
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+}
+static void rgbwSendTask(void *pvParameter)
 {
     //DEBUG INFO
     ESP_LOGI("RGBW", "Configuring transmitter");
@@ -124,7 +133,7 @@ static void udpServerTask(void *pvParameters)
         ESP_LOGI(UDP_SOC_TAG, "Socket created");
         // Set timeout
         struct timeval timeout;
-        timeout.tv_sec = 100;
+        timeout.tv_sec = 5;
         timeout.tv_usec = 0;
         setsockopt (sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof timeout);
         
@@ -163,11 +172,19 @@ static void udpServerTask(void *pvParameters)
         ESP_LOGE(UDP_SOC_TAG, "Shutting down socket and restarting...");
         shutdown(sock, 0);
         close(sock);
-    }
+        memset(rx_buffer,0,sizeof(rx_buffer));
+        if(xUDPtoRGBWq != NULL )
+        {
+        //Send Data and catch Errors
+            if( xQueueSend(xUDPtoRGBWq, rx_buffer, (TickType_t)10) != pdPASS){
+                ESP_LOGE(UDP_SOC_TAG, "Queue Send FAILED!");
+            }
+        }
+}
     }
     vTaskDelete(NULL);
 }
-void heartBeat(void *pvParameter)
+static void heartBeat(void *pvParameter)
 {
    
     /* Set the GPIO as a push/pull output */
@@ -185,7 +202,7 @@ void heartBeat(void *pvParameter)
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
-void start_mdns_service()
+static void start_mdns_service()
 {
     //initialize mDNS service
     esp_err_t err = mdns_init();
@@ -195,7 +212,7 @@ void start_mdns_service()
     }
 
     //set hostname
-    mdns_hostname_set("my-esp32");
+    mdns_hostname_set(ESP_MDNS_HOSTNAME);
     //set default instance
-    mdns_instance_name_set("Jhon's ESP32 Thing");
+    mdns_instance_name_set(ESP_MDNS_DESC);
 }
