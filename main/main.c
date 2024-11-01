@@ -40,11 +40,11 @@ static const char *MAIN_TAG = "MAIN_TAG";
 
 void rgbwSendTask(void *pvParameter);
 static void udpServerTask(void *pvParameters);
-void blinkyTask(void *pvParameter);
+void heartBeat(void *pvParameter);
 void start_mdns_service();
 
 //FreeRTOS Stuff
-TaskHandle_t xtaskBlinky = NULL;
+TaskHandle_t xtaskHeartBeat = NULL;
 TaskHandle_t xtaskRGBW   = NULL;
 TaskHandle_t xtaskUDP    = NULL;
 QueueHandle_t xUDPtoRGBWq= NULL;
@@ -67,7 +67,7 @@ void app_main(void)
     //RUN LED Send Task
     
     //
-    xTaskCreate(&blinkyTask, "blinky", 2*1024,NULL,3,&xtaskBlinky);
+    xTaskCreate(&heartBeat, "Heart_Beat", 2*1024,NULL,3,&xtaskHeartBeat);
     start_mdns_service();
 }
 
@@ -77,7 +77,7 @@ void rgbwSendTask(void *pvParameter)
     ESP_LOGI("RGBW", "Configuring transmitter");
     //Init of RMT periphial
     rmt_tx_int();
-    rgbw_welcome_effect(pixels,1,120,10,50);
+    //rgbw_welcome_effect(pixels,1,120,10,50);
    
     while (1) 
     {
@@ -141,43 +141,33 @@ static void udpServerTask(void *pvParameters)
 
         while (1) 
         {
-            ESP_LOGI(UDP_SOC_TAG, "Waiting for dat");
-
+          
             int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer), 0, (struct sockaddr *)&source_addr, &socklen);
-            // Error occurred during receiving
-            ESP_LOGI(UDP_SOC_TAG, "recv bytes: %d", len);
-            ESP_LOG_BUFFER_HEX_LEVEL(UDP_SOC_TAG, rx_buffer, sizeof(rx_buffer), 2);
-            if (len < 0) 
-            {
-                //ESP_LOGE(UDP_SOC_TAG, "recvfrom failed: errno %d", errno);
+            if (len < 0) {
+                ESP_LOGE(UDP_SOC_TAG, "recvfrom failed: errno %d", errno);
                 break;
-            }
-            // Data received   
-            else 
-            {
+            }else {
                 //IF Queue is created
                  if(xUDPtoRGBWq != NULL )
                  {
                     //Send Data and catch Errors
-                    if( xQueueSend(xUDPtoRGBWq, rx_buffer, (TickType_t)10) != pdPASS)
-                    {
+                    if( xQueueSend(xUDPtoRGBWq, rx_buffer, (TickType_t)10) != pdPASS){
                         ESP_LOGE(UDP_SOC_TAG, "Queue Send FAILED!");
                     }
-
                  }
             }
+        
         }
-        //Catch Socket Stop
-        if (sock != -1) 
-        {
-            ESP_LOGE(UDP_SOC_TAG, "Shutting down socket and restarting...");
-            shutdown(sock, 0);
-            close(sock);
-        }
+    //Catch Socket Stop
+    if (sock != -1) {
+        ESP_LOGE(UDP_SOC_TAG, "Shutting down socket and restarting...");
+        shutdown(sock, 0);
+        close(sock);
+    }
     }
     vTaskDelete(NULL);
 }
-void blinkyTask(void *pvParameter)
+void heartBeat(void *pvParameter)
 {
    
     /* Set the GPIO as a push/pull output */
