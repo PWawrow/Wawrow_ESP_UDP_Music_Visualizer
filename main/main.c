@@ -12,6 +12,7 @@
 #include "nvs_flash.h"
 #include "esp_netif.h"
 #include "protocol_examples_common.h"
+#include "mdns.h"
 
 #include "lwip/err.h"
 #include "lwip/sockets.h"
@@ -23,11 +24,11 @@
 //Global Parameters
 
 //RGBW
-#define NUM_OF_PIXELS 9
-#define NUM_OF_B_IN_PIX 4
+#define NUM_OF_PIXELS 72
+#define NUM_OF_B_IN_PIX 3
 //UDP
 #define PORT CONFIG_EXAMPLE_PORT
-#define UDP_BUFF_LEN NUM_OF_PIXELS*NUM_OF_B_IN_PIX
+#define UDP_BUFF_LEN NUM_OF_ROWS*2//2 for 16bit
 //Blink
 #define BLINK_GPIO 2
 //INC 2
@@ -40,13 +41,17 @@ static const char *MAIN_TAG = "MAIN_TAG";
 void rgbwSendTask(void *pvParameter);
 static void udpServerTask(void *pvParameters);
 void blinkyTask(void *pvParameter);
+void start_mdns_service();
 
 //FreeRTOS Stuff
 TaskHandle_t xtaskBlinky = NULL;
 TaskHandle_t xtaskRGBW   = NULL;
 TaskHandle_t xtaskUDP    = NULL;
 QueueHandle_t xUDPtoRGBWq= NULL;
+uint8_t bars_vals[NUM_OF_ROWS*2] = 
+{
 
+};
 
 void app_main(void)
 {
@@ -55,11 +60,15 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     ESP_ERROR_CHECK(example_connect());
-    xTaskCreate(&udpServerTask, "udp_server", 4096, (void*)AF_INET, 1, &xtaskUDP);
+    
+    xTaskCreate(&rgbwSendTask, "RGBW_SEND", 8*1024, NULL, 1, &xtaskRGBW );
+
+    xTaskCreate(&udpServerTask, "udp_server", 4096, (void*)AF_INET, 2, &xtaskUDP);
     //RUN LED Send Task
-    xTaskCreate(&rgbwSendTask, "RGBW_SEND", 4*1024, NULL, 2, &xtaskRGBW );
+    
     //
     xTaskCreate(&blinkyTask, "blinky", 2*1024,NULL,3,&xtaskBlinky);
+    start_mdns_service();
 }
 
 void rgbwSendTask(void *pvParameter)
@@ -68,7 +77,7 @@ void rgbwSendTask(void *pvParameter)
     ESP_LOGI("RGBW", "Configuring transmitter");
     //Init of RMT periphial
     rmt_tx_int();
-    rgbw_welcome_effect(pixels,1,120,3,15);
+    rgbw_welcome_effect(pixels,1,120,10,50);
    
     while (1) 
     {
@@ -76,10 +85,10 @@ void rgbwSendTask(void *pvParameter)
         {
             // Peek a message on the created queue.  Block for 10 ticks if a
             // message is not immediately available.
-            if( xQueueReceive( xUDPtoRGBWq, &( pixels ), ( TickType_t ) 10 ) )
-                rgbw_write(pixels);
+            if( xQueueReceive( xUDPtoRGBWq, &( bars_vals ), ( TickType_t ) 0 ) )
+                rgbw_write_bars(bars_vals);
         }
-        vTaskDelay(16 / portTICK_PERIOD_MS);
+        //vTaskDelay(16 / portTICK_PERIOD_MS);
     }
     vTaskDelete(NULL);
 }
@@ -185,4 +194,18 @@ void blinkyTask(void *pvParameter)
         gpio_set_level(BLINK_GPIO, 1);
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
+}
+void start_mdns_service()
+{
+    //initialize mDNS service
+    esp_err_t err = mdns_init();
+    if (err) {
+        printf("MDNS Init failed: %d\n", err);
+        return;
+    }
+
+    //set hostname
+    mdns_hostname_set("my-esp32");
+    //set default instance
+    mdns_instance_name_set("Jhon's ESP32 Thing");
 }

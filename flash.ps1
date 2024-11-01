@@ -1,0 +1,1 @@
+idf.py -p COM16 flash -b 921600  monitor
