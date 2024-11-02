@@ -4,6 +4,7 @@
 #include <sys/param.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
 #include "esp_system.h"
 #include "esp_mac.h"
 #include "esp_wifi.h"
@@ -52,11 +53,10 @@ static TaskHandle_t xtaskHeartBeat = NULL;
 static TaskHandle_t xtaskRGBW   = NULL;
 static TaskHandle_t xtaskUDP    = NULL;
 static QueueHandle_t xUDPtoRGBWq= NULL;
-uint8_t bars_vals[NUM_OF_ROWS*2] = 
-{
+uint8_t bars_vals[NUM_OF_ROWS*2] = {};
 
-};
-
+SemaphoreHandle_t xMutexUdpRun;
+bool UdpRunFlag = false;
 void app_main(void)
 {
     //Connect to WIFI and RUN UDP SERVER TASK
@@ -65,20 +65,29 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     ESP_ERROR_CHECK(example_connect());
     
-    xTaskCreate(&menuTask, "Menu", 2*1024, NULL, 1, &xtaskMenu );
+    xTaskCreate(&menuTask, "Menu", 4*1024, NULL, configMAX_PRIORITIES-1, &xtaskMenu );
 
-    xTaskCreate(&rgbwSendTask, "RGBW_Send", 8*1024, NULL, 2, &xtaskRGBW );
+    xTaskCreate(&rgbwSendTask, "RGBW_Send", 8*1024, NULL, configMAX_PRIORITIES-2, &xtaskRGBW );
 
-    xTaskCreate(&udpServerTask, "Udp_Server", 4096, (void*)AF_INET, 3, &xtaskUDP);
+    xTaskCreate(&udpServerTask, "Udp_Server", 4096, (void*)AF_INET, configMAX_PRIORITIES-3, &xtaskUDP);
     //RUN LED Send Task
-    xTaskCreate(&heartBeat, "Heart_Beat", 2*1024,NULL,4,&xtaskHeartBeat);
+    xTaskCreate(&heartBeat, "Heart_Beat", 2*1024,NULL,configMAX_PRIORITIES-4,&xtaskHeartBeat);
 
+    xMutexUdpRun = xSemaphoreCreateBinary();
+    xUDPtoRGBWq = xQueueCreate(10, UDP_BUFF_LEN);
+    if(xUDPtoRGBWq != NULL ) ESP_LOGI(MAIN_TAG, "Created_Q");
 
+    
     start_mdns_service();
 }
 
 static void menuTask(void *pvParameter){
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+   
+   vTaskDelay(15000 / portTICK_PERIOD_MS);
+     if (xtaskUDP != NULL) {
+        vTaskResume(xtaskUDP);
+    }
+    vTaskDelete(NULL);
 }
 static void rgbwSendTask(void *pvParameter)
 {
@@ -94,24 +103,26 @@ static void rgbwSendTask(void *pvParameter)
         {
             // Peek a message on the created queue.  Block for 10 ticks if a
             // message is not immediately available.
-            if( xQueueReceive( xUDPtoRGBWq, &( bars_vals ), ( TickType_t ) 0 ) )
+            if( xQueueReceive( xUDPtoRGBWq, &( bars_vals ), ( TickType_t ) 10/portTICK_PERIOD_MS ) )
                 rgbw_write_bars(bars_vals);
         }
-        //vTaskDelay(16 / portTICK_PERIOD_MS);
+        
     }
     vTaskDelete(NULL);
 }
 static void udpServerTask(void *pvParameters)
 {
     //Init VAR
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    vTaskSuspend(NULL);
     char rx_buffer[UDP_BUFF_LEN];
     char addr_str[128];
     int addr_family = (int)pvParameters;
     int ip_protocol = 0;
     struct sockaddr_in6 dest_addr;
-
-    xUDPtoRGBWq = xQueueCreate(10, sizeof( rx_buffer ) );
-    if(xUDPtoRGBWq != NULL ) ESP_LOGI(UDP_SOC_TAG, "Created_Q");
+    bool run = true;
+    
+    
 
     while (1) 
     {
@@ -150,22 +161,21 @@ static void udpServerTask(void *pvParameters)
 
         while (1) 
         {
-          
             int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer), 0, (struct sockaddr *)&source_addr, &socklen);
             if (len < 0) {
                 ESP_LOGE(UDP_SOC_TAG, "recvfrom failed: errno %d", errno);
                 break;
             }else {
                 //IF Queue is created
-                 if(xUDPtoRGBWq != NULL )
-                 {
+                    if(xUDPtoRGBWq != NULL )
+                    {
                     //Send Data and catch Errors
                     if( xQueueSend(xUDPtoRGBWq, rx_buffer, (TickType_t)10) != pdPASS){
                         ESP_LOGE(UDP_SOC_TAG, "Queue Send FAILED!");
                     }
-                 }
+                    }
             }
-        
+            vTaskDelay(16 / portTICK_PERIOD_MS);
         }
     //Catch Socket Stop
     if (sock != -1) {
@@ -201,6 +211,7 @@ static void heartBeat(void *pvParameter)
         gpio_set_level(BLINK_GPIO, 1);
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
+   // vTaskDelete(NULL);
 }
 static void start_mdns_service()
 {

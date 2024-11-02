@@ -29,11 +29,11 @@
  *s
  **/
 //HELPERS
-static uint32_t map32(uint8_t x, uint8_t in_min, uint8_t in_max, uint8_t out_min, uint8_t out_max);
-static uint8_t map8(uint8_t x, uint8_t in_min, uint8_t in_max, uint8_t out_min, uint8_t out_max);
-static uint8_t* movingAvg(uint8_t* newValues);
-static int sumArray(uint8_t* vals, int size);
-static void convertU8toU16(uint8_t *input, uint16_t *output, size_t inputSize);
+__attribute__((unused)) static uint32_t map32(uint8_t x, uint8_t in_min, uint8_t in_max, uint8_t out_min, uint8_t out_max);
+__attribute__((unused)) static uint8_t map8(uint8_t x, uint8_t in_min, uint8_t in_max, uint8_t out_min, uint8_t out_max);
+__attribute__((unused)) static uint8_t* movingAvg(uint8_t* newValues);
+__attribute__((unused)) static int sumArray(uint8_t* vals, int size);
+__attribute__((unused)) static void convertU8toU16(uint8_t *input, uint16_t *output, size_t inputSize);
 
 void rmt_tx_int();
 void rgbw_encode_pixels(uint8_t* pixels, rmt_item32_t* pixels_encoded);
